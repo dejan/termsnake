@@ -56,7 +56,7 @@ func (s *snake) redirect(d direction) {
 }
 
 func (s *snake) draw() {
-	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
+	termbox.Clear(termbox.ColorDefault, termbox.Attribute(1))
 	for _, n := range s.nodes {
 		termbox.SetCell(n.x, n.y, ' ', termbox.ColorDefault, termbox.Attribute(2))
 	}
@@ -70,8 +70,8 @@ func main() {
 	}
 	defer termbox.Close()
 
-	snake := newSnake()
-	ticker := time.NewTicker(80 * time.Millisecond)
+	snake := newSnake(5, right)
+	ticker := time.NewTicker(70 * time.Millisecond)
 	events := make(chan termbox.Event)
 
 	go func() {
@@ -105,18 +105,14 @@ func main() {
 	}
 }
 
-func newSnake() snake {
-	return snake{
-		nodes: []*node{
-			&node{2, 5, right},
-			&node{3, 5, right},
-			&node{4, 5, right},
-			&node{5, 5, right},
-			&node{6, 5, right},
-			&node{7, 5, right},
-			&node{8, 5, right},
-			&node{9, 5, right},
-		},
-		d: right,
+func newSnake(size int, d direction) snake {
+	const (
+		startX = 2
+		startY = 5
+	)
+	var nodes = make([]*node, size)
+	for i := range nodes {
+		nodes[i] = &node{startX + i, startY, right}
 	}
+	return snake{nodes, d}
 }
