@@ -22,8 +22,9 @@ type node struct {
 }
 
 type snake struct {
-	nodes []*node
-	d     direction
+	nodes     []*node
+	d         direction
+	potential int
 }
 
 func (s *snake) head() *node {
@@ -31,21 +32,31 @@ func (s *snake) head() *node {
 }
 
 func (s *snake) move() {
-	s.head().d = s.d
-	for i, n := range s.nodes {
-		switch n.d {
-		case up:
-			n.y--
-		case down:
-			n.y++
-		case left:
-			n.x--
-		case right:
-			n.x++
-		}
-		if i < (len(s.nodes) - 1) {
-			n.d = s.nodes[i+1].d
-		}
+	head := s.head()
+	head.d = s.d
+
+	var newHead *node
+	if s.potential > 0 {
+		s.potential--
+		newHead = &node{}
+		s.nodes = append(s.nodes, newHead)
+	} else {
+		newHead = s.nodes[0]
+		s.nodes = append(s.nodes[1:], newHead)
+	}
+
+	newHead.d = s.d
+	newHead.x = head.x
+	newHead.y = head.y
+	switch newHead.d {
+	case up:
+		newHead.y--
+	case down:
+		newHead.y++
+	case left:
+		newHead.x--
+	case right:
+		newHead.x++
 	}
 }
 
@@ -70,7 +81,7 @@ func main() {
 	}
 	defer termbox.Close()
 
-	snake := newSnake(5, right)
+	snake := newSnake(1, right)
 	ticker := time.NewTicker(70 * time.Millisecond)
 	events := make(chan termbox.Event)
 
@@ -105,14 +116,15 @@ func main() {
 	}
 }
 
-func newSnake(size int, d direction) snake {
+func newSnake(size, d direction) snake {
 	const (
-		startX = 2
-		startY = 5
+		initX         = 5
+		initY         = 5
+		initPotential = 5
 	)
 	var nodes = make([]*node, size)
 	for i := range nodes {
-		nodes[i] = &node{startX + i, startY, right}
+		nodes[i] = &node{initX + i, initY, right}
 	}
-	return snake{nodes, d}
+	return snake{nodes: nodes, potential: initPotential, d: d}
 }
