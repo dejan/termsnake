@@ -1,11 +1,9 @@
 package main
 
 import (
-	"bytes"
-	"fmt"
 	"time"
 
-	"github.com/pkg/term"
+	"github.com/nsf/termbox-go"
 )
 
 type direction int8
@@ -58,14 +56,57 @@ func (s *snake) redirect(d direction) {
 }
 
 func (s *snake) draw() {
-	fmt.Printf("\033[2J")
+	termbox.Clear(termbox.ColorDefault, termbox.ColorDefault)
 	for _, n := range s.nodes {
-		fmt.Printf("\033[%d;%dHX", n.y, n.x)
+		termbox.SetCell(n.x, n.y, ' ', termbox.ColorDefault, termbox.Attribute(2))
 	}
+	termbox.Flush()
 }
 
 func main() {
-	snake := snake{
+	err := termbox.Init()
+	if err != nil {
+		panic(err)
+	}
+	defer termbox.Close()
+
+	snake := newSnake()
+	ticker := time.NewTicker(80 * time.Millisecond)
+	events := make(chan termbox.Event)
+
+	go func() {
+		for {
+			events <- termbox.PollEvent()
+		}
+	}()
+
+	for {
+		select {
+		case <-ticker.C:
+			snake.move()
+			snake.draw()
+		case ch := <-events:
+			switch ch.Key {
+			case termbox.KeyEsc:
+				fallthrough
+			case termbox.KeyCtrlC:
+				return
+			case termbox.KeyArrowUp:
+				snake.redirect(up)
+			case termbox.KeyArrowDown:
+				snake.redirect(down)
+			case termbox.KeyArrowRight:
+				snake.redirect(right)
+			case termbox.KeyArrowLeft:
+				snake.redirect(left)
+			}
+		default:
+		}
+	}
+}
+
+func newSnake() snake {
+	return snake{
 		nodes: []*node{
 			&node{2, 5, right},
 			&node{3, 5, right},
@@ -78,61 +119,4 @@ func main() {
 		},
 		d: right,
 	}
-
-	ticker := time.NewTicker(80 * time.Millisecond)
-	redirections := make(chan direction)
-	exit := make(chan bool)
-
-	go keybordListener(redirections, exit)
-
-	fmt.Print("\033[?25l") // hide cursor
-	for {
-		select {
-		case <-exit:
-			fmt.Println("\033[?25h") // show cursor
-			fmt.Println("\033[0m")   // reset
-			return
-		case d := <-redirections:
-			snake.redirect(d)
-		case <-ticker.C:
-			snake.move()
-			snake.draw()
-		default:
-		}
-	}
-}
-
-func keybordListener(redirections chan direction, exit chan bool) {
-	for {
-		c := getch()
-		switch {
-		case bytes.Equal(c, []byte{3}): // ctrl + c
-			fallthrough
-		case bytes.Equal(c, []byte{27}): // esc
-			exit <- true
-		case bytes.Equal(c, []byte{27, 91, 65}): // up
-			redirections <- up
-		case bytes.Equal(c, []byte{27, 91, 66}): // down
-			redirections <- down
-		case bytes.Equal(c, []byte{27, 91, 67}): // right
-			redirections <- right
-		case bytes.Equal(c, []byte{27, 91, 68}): // left
-			redirections <- left
-		default:
-			fmt.Println("\nUnknown pressed", c)
-		}
-	}
-}
-
-func getch() []byte {
-	t, _ := term.Open("/dev/tty")
-	term.RawMode(t)
-	bytes := make([]byte, 3)
-	numRead, err := t.Read(bytes)
-	t.Restore()
-	t.Close()
-	if err != nil {
-		return nil
-	}
-	return bytes[0:numRead]
 }
