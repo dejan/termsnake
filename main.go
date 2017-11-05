@@ -107,6 +107,8 @@ func keybordListener(redirections chan direction, exit chan bool) {
 		c := getch()
 		switch {
 		case bytes.Equal(c, []byte{3}): // ctrl + c
+			fallthrough
+		case bytes.Equal(c, []byte{27}): // esc
 			exit <- true
 		case bytes.Equal(c, []byte{27, 91, 65}): // up
 			redirections <- up
