@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/nsf/termbox-go"
@@ -8,11 +9,18 @@ import (
 
 type direction int8
 
+type gameState int8
+
 const (
 	up    = direction(-1)
 	down  = direction(1)
 	right = direction(2)
 	left  = direction(-2)
+
+	welcome  = gameState(0)
+	playing  = gameState(1)
+	gameOver = gameState(2)
+	exit     = gameState(3)
 )
 
 type node struct {
@@ -29,6 +37,10 @@ type snake struct {
 
 func (s *snake) head() *node {
 	return s.nodes[len(s.nodes)-1]
+}
+
+func (s *snake) tail() []*node {
+	return s.nodes[0 : len(s.nodes)-1]
 }
 
 func (s *snake) move() {
@@ -74,6 +86,117 @@ func (s *snake) draw() {
 	termbox.Flush()
 }
 
+type game struct {
+	snake  *snake
+	ticker *time.Ticker
+	events chan termbox.Event
+	state  gameState
+}
+
+func (g *game) tick() {
+	if g.state == playing {
+		g.snake.move()
+		g.consolidate()
+	}
+}
+
+func (g *game) draw() {
+	g.snake.draw()
+}
+
+func (g *game) consolidate() {
+	head := g.snake.head()
+	for _, n := range g.snake.tail() {
+		if (n.x == head.x) && (n.y == head.y) {
+			g.state = gameOver
+		}
+	}
+}
+
+func (g *game) loop() {
+	for {
+
+		switch g.state {
+
+		case welcome:
+			fmt.Println("Welcome. Press space to continue...")
+			select {
+			case ch := <-g.events:
+				switch ch.Key {
+				case termbox.KeyEsc:
+					fallthrough
+				case termbox.KeyCtrlC:
+					return
+				case termbox.KeySpace:
+					g.state = playing
+				}
+			}
+
+		case playing:
+			select {
+			case <-g.ticker.C:
+				g.tick()
+				g.draw()
+			case ch := <-g.events:
+				switch ch.Key {
+				case termbox.KeyEsc:
+					fallthrough
+				case termbox.KeyCtrlC:
+					g.state = exit
+				case termbox.KeyArrowUp:
+					g.snake.redirect(up)
+				case termbox.KeyArrowDown:
+					g.snake.redirect(down)
+				case termbox.KeyArrowRight:
+					g.snake.redirect(right)
+				case termbox.KeyArrowLeft:
+					g.snake.redirect(left)
+				}
+			default:
+			}
+
+		case gameOver:
+			fmt.Println("Game Over. Press space to start again...")
+			select {
+			case ch := <-g.events:
+				switch ch.Key {
+				case termbox.KeyEsc:
+					fallthrough
+				case termbox.KeyCtrlC:
+					return
+				case termbox.KeySpace:
+					g.snake = newSnake(1, right)
+					g.state = playing
+				}
+			}
+		case exit:
+			return
+		}
+	}
+}
+
+func newSnake(size, d direction) *snake {
+	const (
+		initX         = 5
+		initY         = 5
+		initPotential = 20
+	)
+	var nodes = make([]*node, size)
+	for i := range nodes {
+		nodes[i] = &node{initX + i, initY, right}
+	}
+	return &snake{nodes: nodes, potential: initPotential, d: d}
+}
+
+func newGame(events chan termbox.Event) game {
+	return game{
+		snake:  newSnake(1, right),
+		state:  welcome,
+		ticker: time.NewTicker(70 * time.Millisecond),
+		events: events,
+	}
+}
+
 func main() {
 	err := termbox.Init()
 	if err != nil {
@@ -81,50 +204,12 @@ func main() {
 	}
 	defer termbox.Close()
 
-	snake := newSnake(1, right)
-	ticker := time.NewTicker(70 * time.Millisecond)
 	events := make(chan termbox.Event)
-
 	go func() {
 		for {
 			events <- termbox.PollEvent()
 		}
 	}()
-
-	for {
-		select {
-		case <-ticker.C:
-			snake.move()
-			snake.draw()
-		case ch := <-events:
-			switch ch.Key {
-			case termbox.KeyEsc:
-				fallthrough
-			case termbox.KeyCtrlC:
-				return
-			case termbox.KeyArrowUp:
-				snake.redirect(up)
-			case termbox.KeyArrowDown:
-				snake.redirect(down)
-			case termbox.KeyArrowRight:
-				snake.redirect(right)
-			case termbox.KeyArrowLeft:
-				snake.redirect(left)
-			}
-		default:
-		}
-	}
-}
-
-func newSnake(size, d direction) snake {
-	const (
-		initX         = 5
-		initY         = 5
-		initPotential = 5
-	)
-	var nodes = make([]*node, size)
-	for i := range nodes {
-		nodes[i] = &node{initX + i, initY, right}
-	}
-	return snake{nodes: nodes, potential: initPotential, d: d}
+	game := newGame(events)
+	game.loop()
 }
