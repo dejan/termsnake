@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"math/rand"
 	"time"
 
 	"github.com/nsf/termbox-go"
@@ -78,12 +79,9 @@ func (s *snake) redirect(d direction) {
 	}
 }
 
-func (s *snake) draw() {
-	termbox.Clear(termbox.ColorDefault, termbox.Attribute(1))
-	for _, n := range s.nodes {
-		termbox.SetCell(n.x, n.y, ' ', termbox.ColorDefault, termbox.Attribute(2))
-	}
-	termbox.Flush()
+type food struct {
+	x int
+	y int
 }
 
 type game struct {
@@ -91,6 +89,7 @@ type game struct {
 	ticker *time.Ticker
 	events chan termbox.Event
 	state  gameState
+	food   *food
 }
 
 func (g *game) tick() {
@@ -101,7 +100,26 @@ func (g *game) tick() {
 }
 
 func (g *game) draw() {
-	g.snake.draw()
+	termbox.Clear(termbox.ColorDefault, termbox.Attribute(1))
+	for _, n := range g.snake.nodes {
+		termbox.SetCell(n.x, n.y, ' ', termbox.ColorDefault, termbox.Attribute(2))
+	}
+
+	termbox.SetCell(g.food.x, g.food.y, ' ', termbox.ColorDefault, termbox.Attribute(4))
+	termbox.Flush()
+}
+
+func freeSpot(nodes []*node) (int, int) {
+	sx, sy := termbox.Size()
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	x := r.Intn(sx)
+	y := r.Intn(sy)
+	for _, n := range nodes {
+		if (n.x == x) && (n.y == y) {
+			return freeSpot(nodes)
+		}
+	}
+	return x, y
 }
 
 func (g *game) consolidate() {
@@ -110,6 +128,13 @@ func (g *game) consolidate() {
 		if (n.x == head.x) && (n.y == head.y) {
 			g.state = gameOver
 		}
+	}
+
+	if (head.x == g.food.x) && (head.y == g.food.y) {
+		g.snake.potential = 10
+		x, y := freeSpot(g.snake.nodes)
+		g.food.x = x
+		g.food.y = y
 	}
 }
 
@@ -194,6 +219,7 @@ func newGame(events chan termbox.Event) game {
 		state:  welcome,
 		ticker: time.NewTicker(70 * time.Millisecond),
 		events: events,
+		food:   &food{20, 20},
 	}
 }
 
