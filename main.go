@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+	"log"
 	"math/rand"
 	"time"
 
@@ -105,7 +105,7 @@ func (g *game) draw() {
 		termbox.SetCell(n.x, n.y, ' ', termbox.ColorDefault, termbox.Attribute(2))
 	}
 
-	termbox.SetCell(g.food.x, g.food.y, ' ', termbox.ColorDefault, termbox.Attribute(4))
+	termbox.SetCell(g.food.x, g.food.y, ' ', termbox.ColorDefault, termbox.Attribute(3))
 	termbox.Flush()
 }
 
@@ -144,7 +144,7 @@ func (g *game) loop() {
 		switch g.state {
 
 		case welcome:
-			fmt.Println("Welcome. Press space to continue...")
+			puts("Welcome! Press space to continue or ESC to exit anytime...")
 			select {
 			case ch := <-g.events:
 				switch ch.Key {
@@ -181,7 +181,7 @@ func (g *game) loop() {
 			}
 
 		case gameOver:
-			fmt.Println("Game Over. Press space to start again...")
+			puts("Game Over! Press space to start again or ESC to exit anytime...")
 			select {
 			case ch := <-g.events:
 				switch ch.Key {
@@ -204,7 +204,7 @@ func newSnake(size, d direction) *snake {
 	const (
 		initX         = 5
 		initY         = 5
-		initPotential = 20
+		initPotential = 5
 	)
 	var nodes = make([]*node, size)
 	for i := range nodes {
@@ -226,7 +226,7 @@ func newGame(events chan termbox.Event) game {
 func main() {
 	err := termbox.Init()
 	if err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 	defer termbox.Close()
 
@@ -238,4 +238,14 @@ func main() {
 	}()
 	game := newGame(events)
 	game.loop()
+}
+
+func puts(s string) {
+	sx, sy := termbox.Size()
+	x := sx/2 - len(s)/2 - 1
+	y := sy/2 - 1
+	for i, ch := range s {
+		termbox.SetCell(x+i, y, ch, termbox.Attribute(4), termbox.ColorDefault)
+	}
+	termbox.Flush()
 }
