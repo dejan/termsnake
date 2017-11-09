@@ -22,6 +22,8 @@ const (
 	playing  = gameState(1)
 	gameOver = gameState(2)
 	exit     = gameState(3)
+
+	wallColor = 7
 )
 
 type node struct {
@@ -101,33 +103,40 @@ func (g *game) tick() {
 
 func (g *game) draw() {
 	termbox.Clear(termbox.ColorDefault, termbox.Attribute(1))
+
+	// draw snake
 	for _, n := range g.snake.nodes {
 		termbox.SetCell(n.x, n.y, ' ', termbox.ColorDefault, termbox.Attribute(2))
 	}
 
+	// draw food
 	termbox.SetCell(g.food.x, g.food.y, ' ', termbox.ColorDefault, termbox.Attribute(3))
+
+	// draw borders
+	sx, sy := termbox.Size()
+	for x := 0; x < sx; x++ {
+		termbox.SetCell(x, 0, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
+		termbox.SetCell(x, sy-1, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
+	}
+	for y := 0; y < sy; y++ {
+		termbox.SetCell(0, y, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
+		termbox.SetCell(sx-1, y, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
+	}
+
 	termbox.Flush()
 }
 
-func freeSpot(nodes []*node) (int, int) {
-	sx, sy := termbox.Size()
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	x := r.Intn(sx)
-	y := r.Intn(sy)
-	for _, n := range nodes {
-		if (n.x == x) && (n.y == y) {
-			return freeSpot(nodes)
-		}
-	}
-	return x, y
-}
-
 func (g *game) consolidate() {
+	sx, sy := termbox.Size()
 	head := g.snake.head()
 	for _, n := range g.snake.tail() {
 		if (n.x == head.x) && (n.y == head.y) {
 			g.state = gameOver
 		}
+	}
+
+	if (head.x == 0) || (head.x == sx-1) || (head.y == 0) || (head.y == sy-1) {
+		g.state = gameOver
 	}
 
 	if (head.x == g.food.x) && (head.y == g.food.y) {
@@ -214,12 +223,14 @@ func newSnake(size, d direction) *snake {
 }
 
 func newGame(events chan termbox.Event) game {
+	snake := newSnake(1, right)
+	fx, fy := freeSpot(snake.nodes)
 	return game{
-		snake:  newSnake(1, right),
+		snake:  snake,
 		state:  welcome,
 		ticker: time.NewTicker(70 * time.Millisecond),
 		events: events,
-		food:   &food{20, 20},
+		food:   &food{fx, fy},
 	}
 }
 
@@ -248,4 +259,17 @@ func puts(s string) {
 		termbox.SetCell(x+i, y, ch, termbox.Attribute(4), termbox.ColorDefault)
 	}
 	termbox.Flush()
+}
+
+func freeSpot(nodes []*node) (int, int) {
+	sx, sy := termbox.Size()
+	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	x := r.Intn(sx-2) + 1
+	y := r.Intn(sy-2) + 1
+	for _, n := range nodes {
+		if (n.x == x) && (n.y == y) {
+			return freeSpot(nodes)
+		}
+	}
+	return x, y
 }
