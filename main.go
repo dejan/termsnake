@@ -110,7 +110,7 @@ func (g *game) draw() {
 	}
 
 	// draw food
-	termbox.SetCell(g.food.x, g.food.y, ' ', termbox.ColorDefault, termbox.Attribute(3))
+	termbox.SetCell(g.food.x, g.food.y, '*', termbox.Attribute(4), termbox.ColorDefault)
 
 	// draw borders
 	sx, sy := termbox.Size()
