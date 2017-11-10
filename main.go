@@ -18,7 +18,6 @@ const (
 	right = direction(2)
 	left  = direction(-2)
 
-	welcome  = gameState(0)
 	playing  = gameState(1)
 	gameOver = gameState(2)
 	exit     = gameState(3)
@@ -152,20 +151,6 @@ func (g *game) loop() {
 
 		switch g.state {
 
-		case welcome:
-			puts("Welcome! Press space to continue or ESC to exit anytime...")
-			select {
-			case ch := <-g.events:
-				switch ch.Key {
-				case termbox.KeyEsc:
-					fallthrough
-				case termbox.KeyCtrlC:
-					return
-				case termbox.KeySpace:
-					g.state = playing
-				}
-			}
-
 		case playing:
 			select {
 			case <-g.ticker.C:
@@ -173,8 +158,6 @@ func (g *game) loop() {
 				g.draw()
 			case ch := <-g.events:
 				switch ch.Key {
-				case termbox.KeyEsc:
-					fallthrough
 				case termbox.KeyCtrlC:
 					g.state = exit
 				case termbox.KeyArrowUp:
@@ -190,7 +173,7 @@ func (g *game) loop() {
 			}
 
 		case gameOver:
-			puts("Game Over! Press space to start again or ESC to exit anytime...")
+			puts("Game Over! Press space to start again or ESC to exit.")
 			select {
 			case ch := <-g.events:
 				switch ch.Key {
@@ -227,7 +210,7 @@ func newGame(events chan termbox.Event) game {
 	fx, fy := freeSpot(snake.nodes)
 	return game{
 		snake:  snake,
-		state:  welcome,
+		state:  playing,
 		ticker: time.NewTicker(70 * time.Millisecond),
 		events: events,
 		food:   &food{fx, fy},
