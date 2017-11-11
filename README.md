@@ -9,3 +9,7 @@ Snake game in terminal.
 ## Run
 
     termsnake
+
+## Demo
+
+![demo](doc/termsnake.gif)
