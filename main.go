@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"math/rand"
+	"strconv"
 	"time"
 
 	"github.com/nsf/termbox-go"
@@ -91,6 +92,7 @@ type game struct {
 	events chan termbox.Event
 	state  gameState
 	food   *food
+	score  int
 }
 
 func (g *game) tick() {
@@ -122,6 +124,9 @@ func (g *game) draw() {
 		termbox.SetCell(sx-1, y, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
 	}
 
+	// draw score
+	puts(" Score: "+strconv.Itoa(g.score)+" ", 3, 0)
+
 	termbox.Flush()
 }
 
@@ -140,6 +145,7 @@ func (g *game) consolidate() {
 
 	if (head.x == g.food.x) && (head.y == g.food.y) {
 		g.snake.potential = 10
+		g.score++
 		x, y := freeSpot(g.snake.nodes)
 		g.food.x = x
 		g.food.y = y
@@ -173,7 +179,7 @@ func (g *game) loop() {
 			}
 
 		case gameOver:
-			puts("Game Over! Press space to start again or ESC to exit.")
+			cputs("Game Over! Press space to start again or ESC to exit.")
 			select {
 			case ch := <-g.events:
 				switch ch.Key {
@@ -183,6 +189,7 @@ func (g *game) loop() {
 					return
 				case termbox.KeySpace:
 					g.snake = newSnake(1, right)
+					g.score = 0
 					g.state = playing
 				}
 			}
@@ -234,10 +241,15 @@ func main() {
 	game.loop()
 }
 
-func puts(s string) {
+// puts on center
+func cputs(s string) {
 	sx, sy := termbox.Size()
 	x := sx/2 - len(s)/2 - 1
 	y := sy/2 - 1
+	puts(s, x, y)
+}
+
+func puts(s string, x, y int) {
 	for i, ch := range s {
 		termbox.SetCell(x+i, y, ch, termbox.Attribute(4), termbox.ColorDefault)
 	}
