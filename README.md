@@ -4,7 +4,7 @@ Snake game in terminal.
 
 ## Install
 
-    go get github.com/terminism/termsnake
+    go install github.com/terminism/termsnake
 
 ## Run
 
