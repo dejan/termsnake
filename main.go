@@ -93,6 +93,8 @@ type game struct {
 	state  gameState
 	food   *food
 	score  int
+	width  int
+	height int
 }
 
 func (g *game) tick() {
@@ -107,21 +109,25 @@ func (g *game) draw() {
 
 	// draw snake
 	for _, n := range g.snake.nodes {
-		termbox.SetCell(n.x, n.y, ' ', termbox.ColorDefault, termbox.Attribute(2))
+		termbox.SetCell(n.x*2, n.y, ' ', termbox.ColorDefault, termbox.Attribute(2))
+		termbox.SetCell(n.x*2+1, n.y, ' ', termbox.ColorDefault, termbox.Attribute(2))
 	}
 
 	// draw food
-	termbox.SetCell(g.food.x, g.food.y, '*', termbox.Attribute(4), termbox.ColorDefault)
+	termbox.SetCell(g.food.x*2, g.food.y, ' ', termbox.ColorDefault, termbox.Attribute(4))
+	termbox.SetCell(g.food.x*2+1, g.food.y, ' ', termbox.ColorDefault, termbox.Attribute(4))
 
 	// draw borders
-	sx, sy := termbox.Size()
-	for x := 0; x < sx; x++ {
+	sx, sy := g.width, g.height
+	for x := 0; x < sx*2; x++ {
 		termbox.SetCell(x, 0, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
 		termbox.SetCell(x, sy-1, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
 	}
 	for y := 0; y < sy; y++ {
 		termbox.SetCell(0, y, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
-		termbox.SetCell(sx-1, y, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
+		termbox.SetCell(1, y, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
+		termbox.SetCell(sx*2-1, y, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
+		termbox.SetCell(sx*2, y, ' ', termbox.ColorDefault, termbox.Attribute(wallColor))
 	}
 
 	// draw score
@@ -131,7 +137,7 @@ func (g *game) draw() {
 }
 
 func (g *game) consolidate() {
-	sx, sy := termbox.Size()
+	sx, sy := g.width, g.height
 	head := g.snake.head()
 	for _, n := range g.snake.tail() {
 		if (n.x == head.x) && (n.y == head.y) {
@@ -146,7 +152,7 @@ func (g *game) consolidate() {
 	if (head.x == g.food.x) && (head.y == g.food.y) {
 		g.snake.potential = 10
 		g.score++
-		x, y := freeSpot(g.snake.nodes)
+		x, y := freeSpot(g.width, g.height, g.snake.nodes)
 		g.food.x = x
 		g.food.y = y
 	}
@@ -213,12 +219,15 @@ func newSnake(size, d direction) *snake {
 }
 
 func newGame(events chan termbox.Event) game {
+	w, h := termbox.Size()
 	snake := newSnake(1, right)
-	fx, fy := freeSpot(snake.nodes)
+	fx, fy := freeSpot(w/2, h, snake.nodes)
 	return game{
+		width:  w / 2,
+		height: h,
 		snake:  snake,
 		state:  playing,
-		ticker: time.NewTicker(70 * time.Millisecond),
+		ticker: time.NewTicker(80 * time.Millisecond),
 		events: events,
 		food:   &food{fx, fy},
 	}
@@ -256,14 +265,13 @@ func puts(s string, x, y int) {
 	termbox.Flush()
 }
 
-func freeSpot(nodes []*node) (int, int) {
-	sx, sy := termbox.Size()
+func freeSpot(width, height int, nodes []*node) (int, int) {
 	r := rand.New(rand.NewSource(time.Now().UnixNano()))
-	x := r.Intn(sx-2) + 1
-	y := r.Intn(sy-2) + 1
+	x := r.Intn(width-2) + 1
+	y := r.Intn(height-2) + 1
 	for _, n := range nodes {
 		if (n.x == x) && (n.y == y) {
-			return freeSpot(nodes)
+			return freeSpot(width, height, nodes)
 		}
 	}
 	return x, y
