@@ -12,4 +12,4 @@ Snake game in terminal.
 
 ## Demo
 
-![demo](doc/termsnake.gif)
+![demo](doc/termsnake-demo.gif)
